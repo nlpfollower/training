@@ -18,7 +18,9 @@ oci_register_toolchains(name = "oci")
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 oci_pull(
     name = "base_image",
-    image = "continuumio/miniconda3:latest",
+    registry = "index.docker.io",
+    repository = "continuumio/miniconda3",
+    tag = "latest",
     platforms = ["linux/amd64"],
 )
 
