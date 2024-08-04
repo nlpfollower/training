@@ -1,13 +1,5 @@
-load("@rules_oci//oci:pull.bzl", "oci_pull")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball", "oci_push")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-
-# Pull the base Miniconda image
-oci_pull(
-    name = "base_image",
-    image = "continuumio/miniconda3:latest",
-    platforms = ["linux/amd64"],
-)
 
 # Create a tar archive of your project files
 pkg_tar(
@@ -26,7 +18,7 @@ pkg_tar(
 # Create the custom image
 oci_image(
     name = "custom_image",
-    base = ":base_image",
+    base = "@base_image",
     tars = [
         ":project_files",
         ":environment_yaml",
