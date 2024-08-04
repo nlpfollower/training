@@ -63,5 +63,5 @@ def main(method='dpo', model='llama3', config_updates=None,
         train(0, 1, config, master_addr, master_port)
 
 if __name__ == "__main__":
-    pydevd_pycharm.settrace('localhost', port=6789, stdoutToServer=True, stderrToServer=True)
+    #pydevd_pycharm.settrace('localhost', port=6789, stdoutToServer=True, stderrToServer=True)
     fire.Fire(main)

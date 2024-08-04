@@ -1,5 +1,4 @@
 .env
-environment.yaml
 
 /data/
 /models/

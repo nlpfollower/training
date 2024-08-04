@@ -1,0 +1,29 @@
+# BUILD
+
+load("@rules_oci//oci:pull.bzl", "oci_pull")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
+
+# Create a new OCI image with an added text file
+oci_image(
+    name = "custom_image",
+    base = "@base_image",
+    tars = [
+        ":add_text_file",
+    ],
+)
+
+# Define the text file to be added
+genrule(
+    name = "add_text_file",
+    srcs = [],
+    outs = ["text_layer.tar"],
+    cmd = "echo 'Hello from Bazel!' > hello.txt && tar -cf $@ hello.txt",
+)
+
+
+oci_push(
+    name = "push_custom_image",
+    image = ":custom_image",
+    repository = "index.docker.io/{username}/custom_image",
+    remote_tags = ["latest"]
+)
