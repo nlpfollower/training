@@ -1,29 +1,54 @@
-# BUILD
-
 load("@rules_oci//oci:pull.bzl", "oci_pull")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
-# Create a new OCI image with an added text file
+# Pull the base Miniconda image
+oci_pull(
+    name = "base_image",
+    image = "continuumio/miniconda3:latest",
+    platforms = ["linux/amd64"],
+)
+
+# Create a tar archive of your project files
+pkg_tar(
+    name = "project_files",
+    srcs = glob(["**"], exclude = ["bazel-*", "BUILD", "WORKSPACE", "*.yaml"]),
+    package_dir = "/workspace",
+)
+
+# Create a tar archive of your environment.yaml file
+pkg_tar(
+    name = "environment_yaml",
+    srcs = ["environment.yaml"],
+    package_dir = "/workspace",
+)
+
+# Create the custom image
 oci_image(
     name = "custom_image",
-    base = "@base_image",
+    base = ":base_image",
     tars = [
-        ":add_text_file",
+        ":project_files",
+        ":environment_yaml",
     ],
+    cmd = [
+        "/bin/bash",
+        "-c",
+        """
+        conda env create -f /workspace/environment.yaml && \
+        echo "conda activate llama-3" >> ~/.bashrc && \
+        /bin/bash
+        """,
+    ],
+    env = {
+        "PYTHONUNBUFFERED": "1",
+    },
 )
 
-# Define the text file to be added
-genrule(
-    name = "add_text_file",
-    srcs = [],
-    outs = ["text_layer.tar"],
-    cmd = "echo 'Hello from Bazel!' > hello.txt && tar -cf $@ hello.txt",
-)
-
-
+# Push the custom image to Docker Hub
 oci_push(
     name = "push_custom_image",
     image = ":custom_image",
-    repository = "index.docker.io/{username}/custom_image",
+    repository = "index.docker.io/{user}/custom_image",
     remote_tags = ["latest"]
 )
