@@ -3,7 +3,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # rules_oci
 http_archive(
     name = "rules_oci",
-    sha256 = "176e601d21d1151efd88b6b027a24e782493c99d8fcf137bb2a897bdd57eb10a",
+    sha256 = "21a7d14f6ddfcb8ca7c5fc9ffa667c937ce4622c7d2b3e17aea1ffbc90c96bed",
     strip_prefix = "rules_oci-1.4.0",
     url = "https://github.com/bazel-contrib/rules_oci/releases/download/v1.4.0/rules_oci-v1.4.0.tar.gz",
 )
@@ -16,8 +16,6 @@ load("@rules_oci//oci:repositories.bzl", "oci_register_toolchains")
 
 oci_register_toolchains(
     name = "oci",
-    # Modify this to specify a specific digest if needed
-    # crane_version = "v0.14.0",
 )
 
 # rules_pkg
