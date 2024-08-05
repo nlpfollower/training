@@ -8,12 +8,12 @@ bazel_dep(name = "rules_pkg", version = "0.9.1")
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 oci.pull(
-    name = "base_image",
+    name = "pytorch_base",
     registry = "index.docker.io",
-    repository = "continuumio/miniconda3",
-    tag = "latest",
+    repository = "pytorch/pytorch",
+    tag = "2.4.0-cuda11.8-cudnn9-runtime",
     platforms = ["linux/amd64"],
 )
-use_repo(oci, "base_image")
+use_repo(oci, "pytorch_base")
 
 oci.toolchains()
