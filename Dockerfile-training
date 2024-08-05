@@ -3,4 +3,13 @@ FROM {user}/llama-3-snapshot:latest
 WORKDIR /workspace
 COPY . /workspace
 
-CMD ["python", "-m", "scripts.train", "--model", "pythia-160m", "--method", "dpo", "--nnodes", "1", "--nproc_per_node", "1"]
+# Initialize conda in bash and activate environment
+RUN conda init bash && \
+    echo "conda activate llama-3" >> ~/.bashrc
+
+# Make RUN commands use the new environment
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Set the entrypoint to use bash login shell
+ENTRYPOINT ["/bin/bash", "--login", "-c"]
+CMD ["python -m scripts.train --model pythia-160m --method dpo --nnodes 1 --nproc_per_node 1"]
