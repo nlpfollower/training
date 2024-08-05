@@ -4,7 +4,7 @@ from transformers import LlamaForCausalLM, BitsAndBytesConfig
 from llama_models.llama3_1.api.tokenizer import Tokenizer as LlamaTokenizer
 from typing import Dict, Optional, List, Union
 from src.types.conversation import Chat, Thread
-from config.config import Config
+from config import Config
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP, ShardingStrategy, MixedPrecision, CPUOffload
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 import functools

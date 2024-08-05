@@ -8,7 +8,7 @@ from src.data.loader import get_loader
 from src.utils.logger import log
 from src.types.datasets import DPOBatch
 from src.training.mock import Trainer
-from config.config import Config
+from config import Config
 from typing import Dict, Any
 import os
 import torch.distributed as dist

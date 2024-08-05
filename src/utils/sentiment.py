@@ -5,7 +5,7 @@ from transformers import pipeline, AutoTokenizer
 from typing import List, Dict, Union
 from src.types.conversation import Thread
 from src.utils.logger import log
-from config.config import get_config
+from config import get_config
 
 nltk.download('vader_lexicon', quiet=True)
 

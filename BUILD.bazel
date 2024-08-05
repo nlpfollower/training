@@ -4,7 +4,16 @@ load("@rules_pkg//:pkg.bzl", "pkg_tar")
 # Create a tar archive of your project files
 pkg_tar(
     name = "project_files",
-    srcs = glob(["**"], exclude = ["bazel-*", "BUILD", "WORKSPACE", "*.yaml"]),
+    srcs = glob([
+        "scripts/**/*.py",
+        "*.py",
+        "*.yaml",
+        "README.md",
+    ], exclude = [
+        "bazel-*",
+        "__pycache__",
+        "*.pyc",
+    ]),
     package_dir = "/workspace",
 )
 

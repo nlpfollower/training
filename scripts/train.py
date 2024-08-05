@@ -6,7 +6,7 @@ import torch.multiprocessing as mp
 from torch.distributed import init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from config.config import get_config, update_config, set_model_preset
+from config import get_config, update_config, set_model_preset
 from src.training.training_manager import TrainingManager
 from src.utils.logger import log
 import pydevd_pycharm

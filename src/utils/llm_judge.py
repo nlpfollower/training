@@ -1,14 +1,16 @@
 import openai
 from typing import List, Dict, Any, Tuple
 from src.utils.logger import log
-from config.config import get_config
+from config import get_config
 
 
 class GPTJudge:
     def __init__(self, model: str = "gpt-4o-mini"):
         config = get_config()
         self.model = model
-        self.client = openai.Client(api_key=config.api.gpt_api_key)
+        self.client = openai.Client(api_key=config.api.gpt_api_key,
+                                    organization=config.api.gpt_org_id,
+                                    project=config.api.gpt_project_id)
 
     def validate_dpo_sample(self, partial_context: List[str], chat1: str, chat2: str, extra_context: List[str],
                             final_context: List[str]) -> Tuple[bool, str]:

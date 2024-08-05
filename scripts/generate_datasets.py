@@ -1,6 +1,6 @@
 import fire
 import json
-from config.config import get_config, update_config
+from config import (get_config, update_config)
 from src.user.user_manager import UserManager
 from src.training.dpo import DPOGenerator
 from src.training.kto import KTOGenerator

@@ -3,7 +3,7 @@ import torch
 import random
 from torch.utils.data import Dataset, DataLoader
 from typing import Dict, List, Any, Iterator, Union
-from config.config import Config
+from config import Config
 import os
 from llama_models.llama3_1.api.tokenizer import Tokenizer as LlamaTokenizer
 from src.model.llama_model import LlamaModel
@@ -67,6 +67,9 @@ class DPOLoader(BaseLoader):
     def __init__(self, config: Config, tokenizer: LlamaTokenizer):
         super().__init__(config, tokenizer)
         self.file_path = os.path.join(config.paths.dpo_output_dir, 'dpo_samples.json')
+        print(f"DPO samples file path: {self.file_path}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"File exists: {os.path.exists(self.file_path)}")
         self.data = self._load_data()
         self.train_data, self.eval_data = self._split_data()
 

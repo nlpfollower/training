@@ -9,7 +9,7 @@ import tensorflow_hub as hub
 import tensorflow as tf
 from src.types.conversation import Thread
 from src.utils.logger import log
-from config.config import get_config
+from config import get_config
 
 
 def jaccard_similarity(str1: str, str2: str) -> float:

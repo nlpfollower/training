@@ -3,8 +3,12 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, PreTrainedTokenizer
 from typing import Dict, Optional, List, Union
 from src.types.conversation import Chat, Thread
-from config.config import Config
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from config import Config
+from torch.distributed.fsdp import (
+    FullyShardedDataParallel as FSDP,
+    FullStateDictConfig,
+    StateDictType
+)
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 import functools
 
@@ -115,13 +119,19 @@ class PythiaModel:
     def parameters(self):
         return self.model.parameters()
 
+    def state_dict(self):
+        return self.model.state_dict()
+
+    def load_state_dict(self, state_dict):
+        return self.model.load_state_dict(state_dict)
+
     def save(self, save_directory: str):
         os.makedirs(save_directory, exist_ok=True)
         if self.config.fsdp.enabled:
             save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
             with FSDP.state_dict_type(self.model, StateDictType.FULL_STATE_DICT, save_policy):
-                state_dict = self.model.state_dict()
+                state_dict = self.state_dict()
             if torch.distributed.get_rank() == 0:
                 torch.save(state_dict, os.path.join(save_directory, 'model.pt'))
         else:
-            torch.save(self.model.state_dict(), os.path.join(save_directory, 'model.pt'))
+            torch.save(self.state_dict(), os.path.join(save_directory, 'model.pt'))

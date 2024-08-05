@@ -10,7 +10,7 @@ from src.utils.sentiment import SentimentAnalyzer
 from src.utils.llm_judge import GPTJudge
 from src.utils.logger import log
 from src.model.llama_model import LlamaModel
-from config.config import Config, get_config
+from config import Config, get_config
 
 def dpo_loss(policy_chosen_logps: torch.FloatTensor,
              policy_rejected_logps: torch.FloatTensor,

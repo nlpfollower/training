@@ -1,0 +1,6 @@
+FROM {user}/llama-3-snapshot:latest
+
+WORKDIR /workspace
+COPY . /workspace
+
+CMD ["python", "-m", "scripts.train", "--model", "pythia-160m", "--method", "dpo", "--nnodes", "1", "--nproc_per_node", "1"]

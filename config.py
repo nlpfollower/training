@@ -12,16 +12,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 @dataclass
 class APIConfig:
     gpt_api_key: str = os.getenv('GPT_API_KEY')
+    gpt_org_id: str = os.getenv('GPT_ORG_ID')
+    gpt_project_id: str = os.getenv('GPT_PROJECT_ID')
     gpt_model: str = "gpt-4o-mini"
+    runpod_api_key: str = os.getenv('RUNPOD_API_KEY')
 
 @dataclass
 class PathConfig:
     base_dir: str = BASE_DIR
     input_file: str = os.path.join(BASE_DIR, 'data', 'input', 'conversations.json')
     output_dir: str = os.path.join(BASE_DIR, 'data', 'output')
-    dpo_output_dir: str = os.path.join(output_dir, 'dpo')
-    kto_output_dir: str = os.path.join(output_dir, 'kto')
-    spft_output_dir: str = os.path.join(output_dir, 'spft')
+    dpo_output_dir: str = os.path.join(BASE_DIR, 'data', 'output', 'dpo')
+    kto_output_dir: str = os.path.join(BASE_DIR, 'data', 'output', 'kto')
+    spft_output_dir: str = os.path.join(BASE_DIR, 'data', 'output', 'spft')
     stats_dir: str = os.path.join(BASE_DIR, 'data', 'stats')
     local_weights_dir: str = os.path.join(BASE_DIR, 'models', 'weights')
 
@@ -52,8 +55,8 @@ class ModelConfig:
 @dataclass
 class TrainingConfig:
     method: str = "dpo"  # Can be 'dpo', 'kto', or 'sft'
-    batch_size: int = 4
-    eval_batch_size: int = 4
+    batch_size: int = 2
+    eval_batch_size: int = 2
     gradient_accumulation_steps: int = 1
     learning_rate: float = 5e-7
     max_grad_norm: float = 1.0
@@ -63,6 +66,7 @@ class TrainingConfig:
     eval_split: float = 0.1
     save_interval: int = 1  # Save checkpoint every n epochs
     eval_interval: int = 1  # Run evaluation every n epochs
+    num_workers: int = 4  # Add this line
 
 @dataclass
 class FSDPConfig:
