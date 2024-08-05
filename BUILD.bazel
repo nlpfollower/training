@@ -12,13 +12,13 @@ oci_image(
     name = "llama_3_base",
     base = "@pytorch_base",
     tars = [":base_files"],
-    entrypoint = ["/usr/local/bin/entrypoint.sh"],
+    entrypoint = ["/bin/bash"],
     cmd = [
-        "/bin/bash",
         "-c",
         " ".join([
             "chmod 1777 /tmp &&",
-            "/tmp/setup.sh",
+            "/tmp/setup.sh &&",
+            "bash"
         ]),
     ],
 )
