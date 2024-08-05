@@ -12,8 +12,8 @@ oci_image(
     name = "llama_3_base",
     base = "@pytorch_base",
     tars = [":base_files"],
-    cmd = ["/bin/bash", "/tmp/setup.sh"],
-    entrypoint = ["/usr/local/bin/entrypoint.sh"],
+    entrypoint = ["/bin/bash", "-c"],
+    cmd = ["/tmp/setup.sh && /usr/local/bin/entrypoint.sh"],
 )
 
 oci_push(
