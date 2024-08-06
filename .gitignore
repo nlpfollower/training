@@ -6,6 +6,7 @@
 /scripts/logs/
 /src/data/logs/
 /logs/
+/runpod/logs/
 wandb/
 
 .DS_Store

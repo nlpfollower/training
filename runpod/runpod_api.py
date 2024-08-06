@@ -1,8 +1,10 @@
 import httpx
 from config import get_config
+from src.utils.logger import log as logger
+import json
 
 
-class API(object):
+class PodAPI(object):
     def __init__(self):
         config = get_config()
         self.API_KEY = config.api.runpod_api_key  # We'll add this to the APIConfig
@@ -13,10 +15,17 @@ class API(object):
         if auth_required:
             url += f'?api_key={self.API_KEY}'
 
-        response = httpx.post(
-            url,
-            json=payload
-        )
+        logger.info("Sending request to {}", url)
+        # logger.info("Payload: {}", payload)
+
+        response = httpx.post(url, json=payload)
+
+        logger.info("Response status code: {}", response.status_code)
+        try:
+            content = response.json()
+            logger.info("Response content: {}", content)
+        except json.JSONDecodeError:
+            logger.info("Response content: {}", response.text)
 
         return response
 
@@ -328,6 +337,30 @@ class API(object):
             """
         }, True)
 
+    def get_pod_ssh_details(self, pod_id):
+        return self._run_query({
+            "query": """
+                query Pod($input: PodInput!) {
+                    pod(input: $input) {
+                        runtime {
+                            ports {
+                                ip
+                                isIpPublic
+                                privatePort
+                                publicPort
+                                type
+                            }
+                        }
+                    }
+                }
+            """,
+            "variables": {
+                "input": {
+                    "podId": pod_id
+                }
+            }
+        }, True)
+
     # https://docs.runpod.io/docs/start-pod#start-on-demand-pod
     def start_on_demand_pod(self, pod_id):
         return self._run_query({
@@ -396,8 +429,8 @@ class API(object):
     def create_on_demand_pod(self, pod_config):
         return self._run_query({
             "query": """
-                mutation {{
-                    podFindAndDeployOnDemand(input: {{ {pod_config} }}) {{
+                mutation ($input: PodFindAndDeployOnDemandInput!) {
+                    podFindAndDeployOnDemand(input: $input) {
                         containerDiskInGb
                         apiKey
                         costPerHr
@@ -420,31 +453,34 @@ class API(object):
                         volumeInGb
                         volumeKey
                         volumeMountPath
-                        runtime {{
+                        runtime {
                             uptimeInSeconds
-                            ports {{
+                            ports {
                                 ip
                                 isIpPublic
                                 privatePort
                                 publicPort
                                 type
-                            }}
-                            gpus {{
+                            }
+                            gpus {
                                 id
                                 gpuUtilPercent
                                 memoryUtilPercent
-                            }}
-                            container {{
+                            }
+                            container {
                                 cpuPercent
                                 memoryPercent
-                            }}
-                        }}
-                        machine {{
+                            }
+                        }
+                        machine {
                             podHostId
-                        }}
-                    }}
-                }}
-            """.format(pod_config=pod_config)
+                        }
+                    }
+                }
+            """,
+            "variables": {
+                "input": pod_config
+            }
         }, True)
 
     # https://docs.runpod.io/docs/create-pod
@@ -527,6 +563,26 @@ class API(object):
                     }}
                 }}
             """.format(template=template)
+        }, True)
+
+    def execute_pod_command(self, pod_id, command):
+        return self._run_query({
+            "query": """
+                mutation($input: PodExecCommandInput!) {
+                    podExecCommand(input: $input) {
+                        id
+                        output
+                        errorOutput
+                        exitCode
+                    }
+                }
+            """,
+            "variables": {
+                "input": {
+                    "podId": pod_id,
+                    "command": command
+                }
+            }
         }, True)
 
 
@@ -642,8 +698,8 @@ class Serverless(object):
 
 class Endpoints(object):
     def __init__(self):
-        env = dotenv_values('.env')
-        self.API_KEY = env['RUNPOD_API_KEY']
+        config = get_config()
+        self.API_KEY = config.api.runpod_api_key
         self.headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
