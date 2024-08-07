@@ -1,22 +1,13 @@
 import time
 import signal
 import paramiko
+from scp import SCPClient
 from runpod_api import PodAPI
 from src.utils.logger import log as logger
 
 class PodManager:
-    NAME = 'pythia-training'
-    IMAGE_NAME = 'runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04'
-    OS_DISK_SIZE_GB = 10
-    PERSISTENT_DISK_SIZE_GB = 100
-    CLOUD_TYPE = 'SECURE'
-    COUNTRY_CODE = 'SK,SE,BE,BG,CA,CZ,NL'
-    MIN_DOWNLOAD = 700
-    ALLOWED_CUDA_VERSIONS = ['11.8', '12.0', '12.1', '12.2', '12.3']
-    PORTS = '22/tcp,3000/http,6006/http,8888/http'
-    PREFERRED_GPUS = ['NVIDIA A40', 'NVIDIA A100 80GB PCIe']
-
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         self.runpod_api = PodAPI()
         self.pod = None
         self.ssh_client = None
@@ -26,7 +17,7 @@ class PodManager:
         raise KeyboardInterrupt
 
     def create_pod(self):
-        for gpu in self.PREFERRED_GPUS:
+        for gpu in self.config['PREFERRED_GPUS']:
             pod_config = self._get_pod_config(gpu)
             response = self.runpod_api.create_on_demand_pod(pod_config)
 
@@ -45,27 +36,24 @@ class PodManager:
 
     def _get_pod_config(self, gpu_type_id):
         return {
-            "countryCode": self.COUNTRY_CODE,
-            "minDownload": self.MIN_DOWNLOAD,
-            "allowedCudaVersions": self.ALLOWED_CUDA_VERSIONS,
+            "countryCode": self.config['COUNTRY_CODE'],
+            "minDownload": self.config['MIN_DOWNLOAD'],
+            "allowedCudaVersions": self.config['ALLOWED_CUDA_VERSIONS'],
             "gpuCount": 1,
-            "volumeInGb": self.PERSISTENT_DISK_SIZE_GB,
-            "containerDiskInGb": self.OS_DISK_SIZE_GB,
+            "volumeInGb": self.config['PERSISTENT_DISK_SIZE_GB'],
+            "containerDiskInGb": self.config['OS_DISK_SIZE_GB'],
             "gpuTypeId": gpu_type_id,
-            "cloudType": self.CLOUD_TYPE,
+            "cloudType": self.config['CLOUD_TYPE'],
             "supportPublicIp": True,
-            "name": self.NAME,
+            "name": self.config['NAME'],
             "dockerArgs": "",
-            "ports": self.PORTS,
-            "volumeMountPath": "/workspace",
-            "networkVolumeId": "71thl7fnmp",
-            "imageName": self.IMAGE_NAME,
+            "ports": self.config['PORTS'],
+            "volumeMountPath": self.config['VOLUME_MOUNT_PATH'],
+            "networkVolumeId": self.config['NETWORK_VOLUME_ID'],
+            "imageName": self.config['IMAGE_NAME'],
             "startJupyter": True,
             "startSsh": True,
-            "env": [
-                {"key": "PYTHONUNBUFFERED", "value": "1"},
-                {"key": "PYTHONPATH", "value": "/workspace/training"}
-            ]
+            "env": self.config['ENV']
         }
 
     def wait_for_pod_ready(self):
@@ -134,6 +122,80 @@ class PodManager:
         except Exception as e:
             logger.error("Failed to execute command on pod: {}", str(e))
             return None
+
+    def run_ssh_command_with_stream(self, command, callback=None):
+        if not self.ssh_client:
+            logger.error("SSH connection not established")
+            return None
+
+        try:
+            # Open a new channel
+            channel = self.ssh_client.get_transport().open_session()
+            # Execute the command
+            channel.exec_command(command)
+
+            # Read the output stream in a loop
+            while True:
+                if channel.exit_status_ready():
+                    break
+                r, w, e = channel.recv_ready(), channel.recv_stderr_ready(), channel.exit_status_ready()
+                if r:
+                    output = channel.recv(1024).decode('utf-8')
+                    if callback:
+                        callback(output)
+                    else:
+                        print(output, end='')
+                if w:
+                    error = channel.recv_stderr(1024).decode('utf-8')
+                    if callback:
+                        callback(error)
+                    else:
+                        print(error, end='')
+                if e:
+                    break
+                time.sleep(0.1)
+
+            exit_status = channel.recv_exit_status()
+            return {
+                'exit_status': exit_status,
+                'output': channel.recv(1024).decode('utf-8'),
+                'error': channel.recv_stderr(1024).decode('utf-8')
+            }
+        except Exception as e:
+            logger.error("Failed to execute command on pod: {}", str(e))
+            return None
+
+    def transfer_file_to_local(self, remote_path, local_path):
+        if not self.ssh_client:
+            logger.error("SSH connection not established")
+            return False
+
+        try:
+            with SCPClient(self.ssh_client.get_transport()) as scp:
+                scp.get(remote_path, local_path)
+            logger.info(f"File transferred successfully from pod:{remote_path} to local:{local_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to transfer file: {str(e)}")
+            return False
+
+    def delete_file_on_pod(self, remote_path):
+        if not self.ssh_client:
+            logger.error("SSH connection not established")
+            return False
+
+        try:
+            _, stdout, stderr = self.ssh_client.exec_command(f"rm {remote_path}")
+            exit_status = stdout.channel.recv_exit_status()
+            if exit_status == 0:
+                logger.info(f"File {remote_path} deleted successfully from the pod")
+                return True
+            else:
+                logger.error(f"Failed to delete file {remote_path}: {stderr.read().decode('utf-8')}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to delete file: {str(e)}")
+            return False
 
     def cleanup(self):
         if self.ssh_client:

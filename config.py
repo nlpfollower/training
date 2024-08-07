@@ -27,6 +27,9 @@ class PathConfig:
     spft_output_dir: str = os.path.join(BASE_DIR, 'data', 'output', 'spft')
     stats_dir: str = os.path.join(BASE_DIR, 'data', 'stats')
     local_weights_dir: str = os.path.join(BASE_DIR, 'models', 'weights')
+    checkpoint_dir: str = os.path.join(BASE_DIR, 'models', 'checkpoints')
+    shared_model_dir: str = os.path.join(BASE_DIR, 'models', 'shared_models')
+    node_specific_dir: str = os.path.join(BASE_DIR, 'models', 'node_specific_models')
 
 @dataclass
 class SimilarityConfig:
@@ -51,6 +54,7 @@ class ModelConfig:
     name: str
     model_path: str
     tokenizer_path: str
+    max_sequence_length: int = 2048
 
 @dataclass
 class TrainingConfig:
@@ -66,7 +70,13 @@ class TrainingConfig:
     eval_split: float = 0.1
     save_interval: int = 1  # Save checkpoint every n epochs
     eval_interval: int = 1  # Run evaluation every n epochs
-    num_workers: int = 4  # Add this line
+    num_workers: int = 4
+    distributed: bool = False
+    world_size: int = 1
+    nodes: int = 1
+    master_addr: str = 'localhost'
+    master_port: str = '12355'
+    node_rank: int = 0
 
 @dataclass
 class FSDPConfig:
@@ -75,6 +85,9 @@ class FSDPConfig:
     mixed_precision: Optional[str] = None
     activation_checkpointing: bool = False
     cpu_offload: bool = False
+    flatten_parameters: bool = True
+    move_params_to_cpu: bool = False
+    compute_dtype: str = "float32"
 
 @dataclass
 class Config:
@@ -94,12 +107,14 @@ MODEL_PRESETS = {
     "llama3": ModelConfig(
         name="llama3",
         model_path="models/Meta-HF-Llama-3.1-8B-Instruct",
-        tokenizer_path="src/model/llama_tokenizer.model"
+        tokenizer_path="src/model/llama_tokenizer.model",
+        max_sequence_length=2048
     ),
     "pythia-160m": ModelConfig(
         name="pythia-160m",
         model_path="EleutherAI/pythia-160m",
-        tokenizer_path="EleutherAI/pythia-160m"
+        tokenizer_path="EleutherAI/pythia-160m",
+        max_sequence_length=2048
     )
 }
 
@@ -107,7 +122,9 @@ def get_config() -> Config:
     config = Config()
     # Ensure directories exist
     for directory in [config.paths.dpo_output_dir, config.paths.kto_output_dir,
-                      config.paths.spft_output_dir, config.paths.stats_dir]:
+                      config.paths.spft_output_dir, config.paths.stats_dir,
+                      config.paths.checkpoint_dir, config.paths.shared_model_dir,
+                      config.paths.node_specific_dir]:
         os.makedirs(directory, exist_ok=True)
     return config
 
