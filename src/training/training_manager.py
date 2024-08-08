@@ -28,6 +28,7 @@ class TrainingManager:
         self.config = config
         self.trainer = trainer
         self.rank = rank
+        self.current_epoch = 0
         self.node_rank = config.training.node_rank
         self.global_rank = rank + self.node_rank * config.training.world_size // config.training.nodes
         self.global_world_size = config.training.world_size
@@ -118,7 +119,8 @@ class TrainingManager:
 
     def train(self):
         for epoch in range(self.config.training.num_epochs):
-            self._log_rank0(f"Starting epoch {epoch + 1}/{self.config.training.num_epochs}")
+            self.current_epoch = epoch + 1  # Update current_epoch
+            self._log_rank0(f"Starting epoch {self.current_epoch}/{self.config.training.num_epochs}")
             epoch_loss = self._train_epoch()
             self._log_rank0(f"Epoch {epoch + 1} completed. Average Loss: {epoch_loss:.4f}")
 

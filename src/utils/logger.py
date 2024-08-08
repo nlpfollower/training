@@ -49,18 +49,18 @@ def safe_format(obj):
 
 
 def format_record(record):
+    # Extract the label and message
+    label = record["extra"].get("custom_label", "general")
+
     # Safely format the message
     formatted_message = safe_format(record["message"])
-
-    # Create the JSON message
-    message = LogRecord("general", formatted_message)
 
     # Create the log message with the custom format
     log_message = (
         f"<green>{record['time']:YYYY-MM-DD HH:mm:ss}</green> | "
         f"<level>{record['level']:<8}</level> | "
         f"<cyan>{record['name']}</cyan>:<cyan>{record['function']}</cyan>:<cyan>{record['line']}</cyan> | "
-        f"<level>{message.label} | {message.message}</level>\n"
+        f"<level>{label} | {formatted_message}</level>\n"
     )
 
     return log_message
@@ -86,11 +86,9 @@ logger.add(
     colorize=False
 )
 
-
 def log_training_progress(epoch, batch, total_batches, loss, lr):
     progress = f"Epoch: {epoch:3d} | Batch: {batch:5d}/{total_batches:5d} | Loss: {loss:.4f} | LR: {lr:.6f}"
-    message = LogRecord("training", progress)
-    logger.info(f"{message.label} # {message.message}")
+    logger.bind(custom_label="training_status").info(progress)
 
 
 # Export the logger and the training progress function
