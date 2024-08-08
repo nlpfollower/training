@@ -10,12 +10,13 @@ class PodAPI(object):
         self.API_KEY = config.api.runpod_api_key  # We'll add this to the APIConfig
 
     def _run_query(self, payload, auth_required=False):
-        url = 'https://api.runpod.io/graphql'
+        old_url = 'https://api.runpod.io/graphql'
+        url = old_url
 
         if auth_required:
             url += f'?api_key={self.API_KEY}'
 
-        logger.info("Sending request to {}", url)
+        logger.info("Sending request to {}", old_url)
         # logger.info("Payload: {}", payload)
 
         response = httpx.post(url, json=payload)

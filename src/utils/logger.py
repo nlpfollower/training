@@ -1,4 +1,5 @@
 # src/utils/logger.py
+from dataclasses import dataclass
 
 from loguru import logger
 import sys
@@ -11,7 +12,6 @@ from loguru._colorizer import Colorizer
 original_parse_without_formatting = Colorizer._parse_without_formatting
 
 
-@staticmethod
 def patched_parse_without_formatting(string, *, recursion_depth=1000, recursive=False):
     return original_parse_without_formatting(string, recursion_depth=recursion_depth, recursive=recursive)
 
@@ -21,6 +21,10 @@ Colorizer._parse_without_formatting = patched_parse_without_formatting
 # Create a custom PrettyPrinter instance
 pp = pprint.PrettyPrinter(indent=2, width=100, depth=None, compact=False)
 
+@dataclass
+class LogRecord:
+    label: str
+    message: str
 
 def escape_curly_braces(s):
     return s.replace("{", "{{").replace("}", "}}")
@@ -40,7 +44,6 @@ def safe_format(obj):
             formatted = str(obj)
 
     # Preserve actual newlines and escape curly braces
-    # formatted = preserve_newlines(formatted)
     formatted = formatted.replace("<", "\<").replace(">", "\>")
     return escape_curly_braces(formatted)
 
@@ -49,12 +52,15 @@ def format_record(record):
     # Safely format the message
     formatted_message = safe_format(record["message"])
 
+    # Create the JSON message
+    message = LogRecord("general", formatted_message)
+
     # Create the log message with the custom format
     log_message = (
         f"<green>{record['time']:YYYY-MM-DD HH:mm:ss}</green> | "
         f"<level>{record['level']:<8}</level> | "
-        f"<cyan>{record['name']}</cyan>:<cyan>{record['function']}</cyan>:<cyan>{record['line']}</cyan> - "
-        f"<level>{formatted_message}</level>\n"
+        f"<cyan>{record['name']}</cyan>:<cyan>{record['function']}</cyan>:<cyan>{record['line']}</cyan> | "
+        f"<level>{message.label} | {message.message}</level>\n"
     )
 
     return log_message
@@ -80,5 +86,12 @@ logger.add(
     colorize=False
 )
 
-# Export the logger
+
+def log_training_progress(epoch, batch, total_batches, loss, lr):
+    progress = f"Epoch: {epoch:3d} | Batch: {batch:5d}/{total_batches:5d} | Loss: {loss:.4f} | LR: {lr:.6f}"
+    message = LogRecord("training", progress)
+    logger.info(f"{message.label} # {message.message}")
+
+
+# Export the logger and the training progress function
 log = logger

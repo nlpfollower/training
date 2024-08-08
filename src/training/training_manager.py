@@ -5,7 +5,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from src.model.llama_model import LlamaModel
 from src.model.pythia_model import PythiaModel
 from src.data.loader import get_loader
-from src.utils.logger import log
+from src.utils.logger import log, log_training_progress
 from src.types.datasets import DPOBatch
 from src.training.mock import Trainer
 from config import Config
@@ -137,31 +137,19 @@ class TrainingManager:
         num_batches = 0
 
         train_iter = self.data_loader.get_train_iterator()
+        total_batches = len(train_iter)
 
-        # Create a progress bar for each node
-        if self.rank == 0:
-            progress_bar = tqdm(total=len(train_iter), desc=f"Training (Node {self.node_rank})", ncols=100)
-
-        for batch in train_iter:
+        for batch_idx, batch in enumerate(train_iter, 1):
             batch = self.trainer.move_batch_to_device(batch, self.device)
             loss = self._process_batch(batch)
 
             total_loss += loss.item()
             num_batches += 1
 
-            # Update progress bar for this node
+            # Log progress using the custom logger
             if self.rank == 0:
-                progress_bar.update(1)
-                progress_bar.set_postfix({"Loss": f"{loss.item():.4f}"})
-
-            # Log to node-specific file
-            if self.rank == 0:
-                with open(f"logs/node_{self.node_rank}_log.txt", "a") as f:
-                    f.write(f"Batch {num_batches}: Loss {loss.item():.4f}\n")
-
-        if self.rank == 0:
-            progress_bar.close()
-
+                current_lr = self.scheduler.get_last_lr()[0]
+                log_training_progress(self.current_epoch, batch_idx, total_batches, loss.item(), current_lr)
         # Aggregate loss across all processes globally
         global_total_loss = torch.tensor(total_loss).to(self.device)
         dist.all_reduce(global_total_loss, op=ReduceOp.SUM, group=dist.group.WORLD)

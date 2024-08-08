@@ -1,66 +1,42 @@
 from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 
+@dataclass
 class PodConfig:
-    def __init__(
-        self,
-        name: str,
-        image_name: str,
-        os_disk_size_gb: int,
-        persistent_disk_size_gb: int,
-        cloud_type: str,
-        country_code: str,
-        min_download: int,
-        allowed_cuda_versions: List[str],
-        ports: str,
-        preferred_gpus: List[str],
-        volume_mount_path: str,
-        network_volume_id: str,
-        env: List[Dict[str, str]]
-    ):
-        self.name = name
-        self.image_name = image_name
-        self.os_disk_size_gb = os_disk_size_gb
-        self.persistent_disk_size_gb = persistent_disk_size_gb
-        self.cloud_type = cloud_type
-        self.country_code = country_code
-        self.min_download = min_download
-        self.allowed_cuda_versions = allowed_cuda_versions
-        self.ports = ports
-        self.preferred_gpus = preferred_gpus
-        self.volume_mount_path = volume_mount_path
-        self.network_volume_id = network_volume_id
-        self.env = env
+    name: str
+    imageName: str
+    containerDiskInGb: int
+    volumeInGb: int
+    cloudType: str
+    countryCode: str
+    minDownload: int
+    allowedCudaVersions: List[str]
+    ports: str
+    gpuTypeId: str
+    volumeMountPath: str
+    networkVolumeId: str
+    env: List[Dict[str, str]] = field(default_factory=list)
+    gpuCount: int = 1
+    startJupyter: bool = False
+    startSsh: bool = True
+    dockerArgs: str = ""
 
     def to_dict(self) -> Dict[str, any]:
-        return {
-            'NAME': self.name,
-            'IMAGE_NAME': self.image_name,
-            'OS_DISK_SIZE_GB': self.os_disk_size_gb,
-            'PERSISTENT_DISK_SIZE_GB': self.persistent_disk_size_gb,
-            'CLOUD_TYPE': self.cloud_type,
-            'COUNTRY_CODE': self.country_code,
-            'MIN_DOWNLOAD': self.min_download,
-            'ALLOWED_CUDA_VERSIONS': self.allowed_cuda_versions,
-            'PORTS': self.ports,
-            'PREFERRED_GPUS': self.preferred_gpus,
-            'VOLUME_MOUNT_PATH': self.volume_mount_path,
-            'NETWORK_VOLUME_ID': self.network_volume_id,
-            'ENV': self.env
-        }
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
 
 # Preset configurations
 DEFAULT_CONFIG = {
     'name': 'default-training',
-    'image_name': 'runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04',
-    'os_disk_size_gb': 10,
-    'persistent_disk_size_gb': 100,
-    'cloud_type': 'SECURE',
-    'country_code': 'SK,SE,BE,BG,CA,CZ,NL',
-    'min_download': 700,
-    'allowed_cuda_versions': ['11.8', '12.0', '12.1', '12.2', '12.3'],
+    'imageName': 'runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04',
+    'containerDiskInGb': 10,
+    'volumeInGb': 100,
+    'cloudType': 'SECURE',
+    'countryCode': 'SK,SE,BE,BG,CA,CZ,NL',
+    'minDownload': 700,
+    'allowedCudaVersions': ['11.8', '12.0', '12.1', '12.2', '12.3'],
     'ports': '22/tcp,3000/http,6006/http,8888/http',
-    'preferred_gpus': ['NVIDIA A40', 'NVIDIA A100 80GB PCIe'],
-    'volume_mount_path': '/workspace',
+    'gpuTypeId': 'NVIDIA A40',
+    'volumeMountPath': '/workspace',
     'env': [
         {"key": "PYTHONUNBUFFERED", "value": "1"},
         {"key": "PYTHONPATH", "value": "/workspace/training"}
@@ -83,7 +59,7 @@ def create_pod_config(
     else:
         config = DEFAULT_CONFIG.copy()
 
-    config['network_volume_id'] = network_volume_id
+    config['networkVolumeId'] = network_volume_id
 
     if model_name:
         config['name'] = f"{config['name']}-{model_name}"
