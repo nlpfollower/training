@@ -93,10 +93,17 @@ class FSDPConfig:
     compute_dtype: str = "float32"
 
 @dataclass
+class CloudflareConfig:
+    multipart_threshold: int = 100 * 1024 * 1024  # 100 MB
+    multipart_chunksize: int = 100 * 1024 * 1024  # 25 MB
+    max_concurrency: int = 20
+
+@dataclass
 class Config:
     api: APIConfig = field(default_factory=APIConfig)
     fsdp: FSDPConfig = field(default_factory=FSDPConfig)
     paths: PathConfig = field(default_factory=PathConfig)
+    cloudflare: CloudflareConfig = field(default_factory=CloudflareConfig)
     similarity: SimilarityConfig = field(default_factory=SimilarityConfig)
     sentiment: SentimentConfig = field(default_factory=SentimentConfig)
     model: ModelConfig = field(default_factory=lambda: ModelConfig(
