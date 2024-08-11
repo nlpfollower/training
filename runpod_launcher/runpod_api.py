@@ -1,6 +1,7 @@
+from typing import Dict, List, Any
 import httpx
 from config import get_config
-from src.utils.logger import log as logger
+from src.utils.logger import log
 import json
 
 
@@ -16,43 +17,75 @@ class PodAPI(object):
         if auth_required:
             url += f'?api_key={self.API_KEY}'
 
-        logger.info("Sending request to {}", old_url)
-        # logger.info("Payload: {}", payload)
+        log.info("Sending request to {}", old_url)
+        # log.info("Payload: {}", payload)
 
         response = httpx.post(url, json=payload)
 
-        logger.info("Response status code: {}", response.status_code)
+        log.info("Response status code: {}", response.status_code)
         try:
             content = response.json()
-            logger.info("Response content: {}", content)
+            log.info("Response content: {}", content)
         except json.JSONDecodeError:
-            logger.info("Response content: {}", response.text)
+            log.info("Response content: {}", response.text)
 
         return response
 
     # https://docs.runpod.io/docs/get-gpu-types
-    def get_gpu_types(self):
-        return self._run_query({
-            "query": """
-                query GpuTypes {
-                    gpuTypes {
-                        maxGpuCount
-                        id
-                        displayName
-                        manufacturer
-                        memoryInGb
-                        cudaCores
-                        secureCloud
-                        communityCloud
-                        securePrice
-                        communityPrice
-                        lowestPrice(input: { gpuCount: 1 }) {
-                            minimumBidPrice
-                        }
-                    }
+    def get_available_gpus_by_region(self) -> Dict[str, List[Dict[str, Any]]]:
+        query = """
+        query GpuTypes {
+            gpuTypes {
+                id
+                displayName
+                memoryInGb
+                secureCloud
+                communityCloud
+                securePrice
+                communityPrice
+                datacenterName
+                lowestPrice(input: { gpuCount: 1 }) {
+                    minimumBidPrice
+                    uninterruptablePrice
                 }
-            """
-        }, False)
+            }
+        }
+        """
+
+        response = self._run_query({"query": query}, auth_required=False)
+
+        if response.status_code != 200:
+            log.error(f"Failed to fetch GPU types. Status code: {response.status_code}")
+            return {}
+
+        data = response.json()
+        gpus_by_region = {}
+
+        for gpu in data['data']['gpuTypes']:
+            # Skip the 'unknown' GPU type
+            if gpu['id'] == 'unknown':
+                continue
+
+            regions = gpu.get('datacenterName', '').split(',')
+            for region in regions:
+                region = region.strip()
+                if region:
+                    if region not in gpus_by_region:
+                        gpus_by_region[region] = []
+                    gpus_by_region[region].append({
+                        'id': gpu['id'],
+                        'displayName': gpu['displayName'],
+                        'memoryInGb': gpu['memoryInGb'],
+                        'secureCloud': gpu['secureCloud'],
+                        'communityCloud': gpu['communityCloud'],
+                        'securePrice': gpu['securePrice'],
+                        'communityPrice': gpu['communityPrice'],
+                        'minimumBidPrice': gpu['lowestPrice']['minimumBidPrice'] if gpu['lowestPrice'] else None,
+                        'uninterruptablePrice': gpu['lowestPrice']['uninterruptablePrice'] if gpu[
+                            'lowestPrice'] else None
+                    })
+
+        return gpus_by_region
 
     def get_bid_price(self, gpu_id):
         return self._run_query({

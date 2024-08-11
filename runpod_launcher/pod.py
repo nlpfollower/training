@@ -3,7 +3,7 @@ import os
 import paramiko
 from scp import SCPClient
 from runpod_api import PodAPI
-from src.utils.logger import log as logger
+from src.utils.logger import log
 from pod_config import PodConfig
 
 class Pod:
@@ -18,41 +18,41 @@ class Pod:
 
     def create(self, max_retries=3, retry_delay=5):
         for attempt in range(max_retries):
-            logger.info(f"Pod creation attempt {attempt + 1}/{max_retries}")
+            log.info(f"Pod creation attempt {attempt + 1}/{max_retries}")
 
             response = self.runpod_api.create_on_demand_pod(self.pod_config.to_dict())
 
             if response.status_code != 200:
-                logger.error(f"Failed to create pod. Status code: {response.status_code}")
+                log.error(f"Failed to create pod. Status code: {response.status_code}")
                 if attempt < max_retries - 1:
-                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    log.info(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 continue
 
             response_data = response.json()
 
             if 'errors' in response_data:
-                logger.error(f"Error creating pod: {response_data['errors']}")
+                log.error(f"Error creating pod: {response_data['errors']}")
                 if attempt < max_retries - 1:
-                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    log.info(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 continue
 
             pod_data = response_data.get('data', {}).get('podFindAndDeployOnDemand')
             if not pod_data:
-                logger.error("Pod data is missing from the response")
+                log.error("Pod data is missing from the response")
                 if attempt < max_retries - 1:
-                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    log.info(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 continue
 
             self.pod_data = pod_data
             self.runpod_id = self.pod_data['id']
             self.api_key = self.pod_data.get('apiKey')  # Store the API key
-            logger.info(f"Created pod: Internal ID = {self.pod_id}, RunPod ID = {self.runpod_id}")
+            log.info(f"Created pod: Internal ID = {self.pod_id}, RunPod ID = {self.runpod_id}")
             return True
 
-        logger.error(f"Failed to create pod after {max_retries} attempts")
+        log.error(f"Failed to create pod after {max_retries} attempts")
         return False
 
     def wait_for_ready(self, max_retries=30, delay=10):
@@ -61,44 +61,44 @@ class Pod:
             pod_data = status_response.json().get('data', {}).get('pod', {})
             if pod_data.get('desiredStatus') == 'RUNNING' and pod_data.get('runtime') is not None:
                 self.pod_data = pod_data
-                logger.info("Pod is running with runtime information.")
+                log.info("Pod is running with runtime information.")
                 return True
             time.sleep(delay)
-        logger.error("Pod did not enter RUNNING state.")
+        log.error("Pod did not enter RUNNING state.")
         return False
 
     def establish_ssh_connection(self):
         if not self.pod_data or 'runtime' not in self.pod_data:
-            logger.error("Pod information is not available")
+            log.error("Pod information is not available")
             return False
 
         if not self.api_key:
-            logger.error("API key is not available")
+            log.error("API key is not available")
             return False
 
         ssh_details = next(
             (port for port in self.pod_data['runtime']['ports'] if port['privatePort'] == 22), None)
         if not ssh_details:
-            logger.error("SSH details not found in pod runtime information")
+            log.error("SSH details not found in pod runtime information")
             return False
 
         ssh_ip, ssh_port = ssh_details['ip'], ssh_details['publicPort']
-        logger.info(f"Attempting to connect via SSH to {ssh_ip}:{ssh_port}")
+        log.info(f"Attempting to connect via SSH to {ssh_ip}:{ssh_port}")
 
         self.ssh_client = paramiko.SSHClient()
         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
             self.ssh_client.connect(ssh_ip, port=ssh_port, username='root', password=self.api_key, timeout=30)
-            logger.info("SSH connection established successfully")
+            log.info("SSH connection established successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to establish SSH connection: {str(e)}")
+            log.error(f"Failed to establish SSH connection: {str(e)}")
             return False
 
     def run_ssh_command(self, command):
         if not self.ssh_client:
-            logger.error("SSH connection not established")
+            log.error("SSH connection not established")
             return None
 
         try:
@@ -110,12 +110,12 @@ class Pod:
                 'error': stderr.read().decode('utf-8')
             }
         except Exception as e:
-            logger.error(f"Failed to execute command on pod: {str(e)}")
+            log.error(f"Failed to execute command on pod: {str(e)}")
             return None
 
     def run_ssh_command_with_stream(self, command, callback):
         if not self.ssh_client:
-            logger.error("SSH connection not established")
+            log.error("SSH connection not established")
             return None
 
         try:
@@ -139,11 +139,11 @@ class Pod:
             exit_status = channel.recv_exit_status()
             return exit_status
         except Exception as e:
-            logger.error(f"Failed to execute command on pod: {str(e)}")
+            log.error(f"Failed to execute command on pod: {str(e)}")
             return None
     def transfer_file_to_remote(self, local_path, remote_path):
         if not self.ssh_client:
-            logger.error("SSH connection not established")
+            log.error("SSH connection not established")
             return False
 
         try:
@@ -154,42 +154,42 @@ class Pod:
             # Transfer the file
             with SCPClient(self.ssh_client.get_transport()) as scp:
                 scp.put(local_path, remote_path)
-            logger.info(f"File transferred successfully from local:{local_path} to pod:{remote_path}")
+            log.info(f"File transferred successfully from local:{local_path} to pod:{remote_path}")
             return True
         except Exception as e:
-            logger.error(f"Failed to transfer file: {str(e)}")
+            log.error(f"Failed to transfer file: {str(e)}")
             return False
 
     def transfer_file_to_local(self, remote_path, local_path):
         if not self.ssh_client:
-            logger.error("SSH connection not established")
+            log.error("SSH connection not established")
             return False
 
         try:
             with SCPClient(self.ssh_client.get_transport()) as scp:
                 scp.get(remote_path, local_path)
-            logger.info(f"File transferred successfully from pod:{remote_path} to local:{local_path}")
+            log.info(f"File transferred successfully from pod:{remote_path} to local:{local_path}")
             return True
         except Exception as e:
-            logger.error(f"Failed to transfer file: {str(e)}")
+            log.error(f"Failed to transfer file: {str(e)}")
             return False
 
     def delete_file_on_pod(self, remote_path):
         if not self.ssh_client:
-            logger.error("SSH connection not established")
+            log.error("SSH connection not established")
             return False
 
         try:
             _, stdout, stderr = self.ssh_client.exec_command(f"rm {remote_path}")
             exit_status = stdout.channel.recv_exit_status()
             if exit_status == 0:
-                logger.info(f"File {remote_path} deleted successfully from the pod")
+                log.info(f"File {remote_path} deleted successfully from the pod")
                 return True
             else:
-                logger.error(f"Failed to delete file {remote_path}: {stderr.read().decode('utf-8')}")
+                log.error(f"Failed to delete file {remote_path}: {stderr.read().decode('utf-8')}")
                 return False
         except Exception as e:
-            logger.error(f"Failed to delete file: {str(e)}")
+            log.error(f"Failed to delete file: {str(e)}")
             return False
 
     def cleanup(self):
@@ -197,10 +197,10 @@ class Pod:
             self.ssh_client.close()
 
         if self.runpod_id:
-            logger.info(f"Terminating pod {self.runpod_id}...")
+            log.info(f"Terminating pod {self.runpod_id}...")
             response = self.runpod_api.terminate_pod(self.runpod_id)
             if response.status_code != 200:
-                logger.error(f"Failed to terminate pod {self.runpod_id}: {response.status_code}")
+                log.error(f"Failed to terminate pod {self.runpod_id}: {response.status_code}")
                 return
 
             self._wait_for_termination()
@@ -210,16 +210,7 @@ class Pod:
             status_response = self.runpod_api.get_pod(self.runpod_id)
             pod_data = status_response.json().get('data', {}).get('pod')
             if pod_data is None or pod_data.get('desiredStatus') == 'TERMINATED':
-                logger.info(f"Pod {self.runpod_id} termination confirmed")
+                log.info(f"Pod {self.runpod_id} termination confirmed")
                 return
             time.sleep(delay)
-        logger.error(f"Failed to confirm pod {self.runpod_id} termination. Please check manually.")
-
-    def get_ip(self):
-        if not self.pod_data or 'runtime' not in self.pod_data:
-            logger.error("Pod information is not available")
-            return None
-
-        ssh_details = next(
-            (port for port in self.pod_data['runtime']['ports'] if port['privatePort'] == self.custom_ssh_port), None)
-        return ssh_details['ip'] if ssh_details else None
+        log.error(f"Failed to confirm pod {self.runpod_id} termination. Please check manually.")

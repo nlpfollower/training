@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import re
 from pod_manager import PodManager
-from pod_config import create_pod_config
-from src.utils.logger import log as logger
-from src.utils.logger import log_training_progress
+from src.utils.logger import log
+from src.utils.training_progress import TrainingProgress
 
 
 def get_args():
@@ -13,21 +11,6 @@ def get_args():
     parser.add_argument('--model', type=str, default='pythia-160m', help='Model type to train')
     parser.add_argument('--network-volume-id', type=str, required=True, help='Network volume ID')
     return parser.parse_args()
-
-
-def log_output(output):
-    output = output.strip()
-    print(output)
-    # Parse tqdm output
-    # match = re.search(r'(\d+)/(\d+) \[.+, Loss=([\d.]+)]', output)
-    # if match:
-    #     batch, total_batches, loss = match.groups()
-    #     # Assuming epoch information is not available in the output
-    #     epoch = 1  # or some way to track the current epoch
-    #     lr = 0.0  # Placeholder as learning rate is not available in the output
-    #     log_training_progress(epoch, int(batch), int(total_batches), float(loss), lr)
-    # else:
-    #     logger.info(output)
 
 
 def main():
@@ -41,24 +24,24 @@ def main():
     remote_path = '/workspace/training/data/output/dpo/dpo_samples.json'
 
     try:
-        logger.info("Starting Pythia training on RunPod")
-        logger.info(f"Model: {args.model}")
+        log.info("Starting Pythia training on RunPod")
+        log.info(f"Model: {args.model}")
 
         if not pod_manager.create_pod(internal_pod_id, args.network_volume_id, args.model, preset='pythia'):
-            logger.error("Failed to create pod")
+            log.error("Failed to create pod")
             return
 
         pod = pod_manager.get_pod(internal_pod_id)
 
         # Ensure the local file exists
         if not os.path.exists(local_path):
-            logger.error(f"Local file {local_path} does not exist")
+            log.error(f"Local file {local_path} does not exist")
             return
 
         if pod_manager.transfer_file_to_pod(internal_pod_id, local_path, remote_path):
-            logger.info(f"Successfully transferred {local_path} to {remote_path}")
+            log.info(f"Successfully transferred {local_path} to {remote_path}")
         else:
-            logger.error(f"Failed to transfer {local_path} to {remote_path}")
+            log.error(f"Failed to transfer {local_path} to {remote_path}")
             return
 
         # Run the Pythia training command using the pre-built environment
@@ -68,32 +51,34 @@ def main():
             f"--model {args.model} --method dpo --nnodes 1 --nproc_per_node 1"
             "'"
         )
-        logger.info("Starting training command...")
+        log.info("Starting training command...")
 
-        exit_status = pod_manager.run_command_with_stream_on_pod(internal_pod_id, train_command, log_output)
+        training_progress = TrainingProgress()
+        exit_status = pod_manager.run_command_with_stream_on_pod(internal_pod_id, train_command, training_progress.update)
+        training_progress.close()
 
         if exit_status is not None:
-            logger.info(f"Training command completed with exit status: {exit_status}")
+            log.info(f"Training command completed with exit status: {exit_status}")
         else:
-            logger.error("Failed to execute training command")
+            log.error("Failed to execute training command")
 
-        logger.info("Training completed.")
+        log.info("Training completed.")
 
     except KeyboardInterrupt:
-        logger.warning("Keyboard interrupt received. Terminating...")
+        log.warning("Keyboard interrupt received. Terminating...")
     except Exception as e:
-        logger.exception(f"An error occurred: {str(e)}")
+        log.exception(f"An error occurred: {str(e)}")
     finally:
         # Only try to delete the file if the pod still exists
         if pod_manager.get_pod(internal_pod_id):
             if pod_manager.delete_file_on_pod(internal_pod_id, remote_path):
-                logger.info(f"Successfully deleted {remote_path} from the pod")
+                log.info(f"Successfully deleted {remote_path} from the pod")
             else:
-                logger.warning(f"Failed to delete {remote_path} from the pod")
+                log.warning(f"Failed to delete {remote_path} from the pod")
 
         # Cleanup the pod
         pod_manager.cleanup_pod(internal_pod_id)
-        logger.info("Script execution completed")
+        log.info("Script execution completed")
 
 
 if __name__ == '__main__':

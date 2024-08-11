@@ -16,6 +16,9 @@ class APIConfig:
     gpt_project_id: str = os.getenv('GPT_PROJECT_ID')
     gpt_model: str = "gpt-4o-mini"
     runpod_api_key: str = os.getenv('RUNPOD_API_KEY')
+    cloudflare_endpoint_url: str = os.getenv('CLOUDFLARE_ENDPOINT_URL')
+    cloudflare_access_key_id: str = os.getenv('CLOUDFLARE_ACCESS_KEY_ID')
+    cloudflare_secret_access_key: str = os.getenv('CLOUDFLARE_SECRET_ACCESS_KEY')
 
 @dataclass
 class PathConfig:

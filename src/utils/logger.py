@@ -90,6 +90,18 @@ def log_training_progress(epoch, batch, total_batches, loss, lr):
     progress = f"Epoch: {epoch:3d} | Batch: {batch:5d}/{total_batches:5d} | Loss: {loss:.4f} | LR: {lr:.6f}"
     logger.bind(custom_label="training_status").info(progress)
 
+def log_upload_progress(files_completed, total_files, bytes_transferred, total_size):
+    percentage = (bytes_transferred / total_size) * 100
+    log.bind(custom_label="progress").info(
+        f"Overall Progress: {files_completed}/{total_files} files, "
+        f"{bytes_transferred}/{total_size} bytes ({percentage:.2f}%)"
+    )
+
+def log_bandwidth(current_speed, avg_speed):
+    logger.bind(custom_label="bandwidth").info(
+        f"Current: {current_speed:.2f} MB/s, Average: {avg_speed:.2f} MB/s"
+    )
+
 
 # Export the logger and the training progress function
 log = logger

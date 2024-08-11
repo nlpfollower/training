@@ -12,6 +12,7 @@ class PodConfig:
     minDownload: int
     allowedCudaVersions: List[str]
     ports: str
+    templateId: str
     gpuTypeId: str
     volumeMountPath: str
     networkVolumeId: str
@@ -25,28 +26,26 @@ class PodConfig:
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
 
 # Preset configurations
-DEFAULT_CONFIG = {
-    'name': 'default-training',
-    'imageName': 'runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04',
-    'containerDiskInGb': 10,
-    'volumeInGb': 100,
-    'cloudType': 'SECURE',
-    'countryCode': 'SK,SE,BE,BG,CA,CZ,NL',
-    'minDownload': 700,
-    'allowedCudaVersions': ['11.8', '12.0', '12.1', '12.2', '12.3'],
-    'ports': '22/tcp,3000/http,6006/http,8888/http',
-    'gpuTypeId': 'NVIDIA A40',
-    'volumeMountPath': '/workspace',
-    'env': [
+DEFAULT_CONFIG = PodConfig(
+    name='default-training',
+    imageName='runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04',
+    containerDiskInGb=10,
+    volumeInGb=100,
+    cloudType='SECURE',
+    countryCode='SK,SE,BE,BG,CA,CZ,NL',
+    minDownload=700,
+    allowedCudaVersions=['11.8', '12.0', '12.1', '12.2', '12.3'],
+    ports='22/tcp,3000/http,6006/http,8888/http',
+    templateId='',
+    gpuTypeId='NVIDIA A40',
+    volumeMountPath='/workspace',
+    networkVolumeId='',
+    env=[
         {"key": "PYTHONUNBUFFERED", "value": "1"},
         {"key": "PYTHONPATH", "value": "/workspace/training"}
     ]
-}
+)
 
-PYTHIA_CONFIG = {
-    **DEFAULT_CONFIG,
-    'name': 'pythia-training',
-}
 
 def create_pod_config(
     network_volume_id: str,
@@ -54,18 +53,15 @@ def create_pod_config(
     preset: str = 'default',
     **kwargs
 ) -> PodConfig:
-    if preset == 'pythia':
-        config = PYTHIA_CONFIG.copy()
-    else:
-        config = DEFAULT_CONFIG.copy()
+    config = DEFAULT_CONFIG
 
-    config['networkVolumeId'] = network_volume_id
+    # Create a new PodConfig instance with updated values
+    updated_config = PodConfig(
+        **{**config.to_dict(), 'networkVolumeId': network_volume_id, **kwargs}
+    )
 
     if model_name:
-        config['name'] = f"{config['name']}-{model_name}"
-        config['env'].append({"key": "MODEL_NAME", "value": model_name})
+        updated_config.name = f"{updated_config.name}-{model_name}"
+        updated_config.env.append({"key": "MODEL_NAME", "value": model_name})
 
-    # Override any config values with provided kwargs
-    config.update(kwargs)
-
-    return PodConfig(**config)
+    return updated_config
