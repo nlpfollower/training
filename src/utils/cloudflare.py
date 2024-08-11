@@ -57,7 +57,7 @@ class CloudflareR2:
         return True
 
     def upload_files_concurrently(self, files: List[Tuple[str, str, str]]):
-        total_size = sum(os.path.getsize(data_file) for data_file, _ in files)
+        total_size = sum(os.path.getsize(data_file) for data_file, _, _ in files)
         bandwidth_monitor = BandwidthMonitor()
         progress_tracker = UploadTracker(len(files), total_size, bandwidth_monitor)
 
