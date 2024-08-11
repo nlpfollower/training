@@ -2,6 +2,8 @@ import os
 import threading
 import time
 import concurrent.futures
+from typing import List, Tuple
+
 from botocore.exceptions import ClientError
 import boto3
 from boto3.s3.transfer import TransferConfig
@@ -54,7 +56,7 @@ class CloudflareR2:
             return False
         return True
 
-    def upload_files_concurrently(self, files, bucket_name):
+    def upload_files_concurrently(self, files: List[Tuple[str, str, str]]):
         total_size = sum(os.path.getsize(data_file) for data_file, _ in files)
         bandwidth_monitor = BandwidthMonitor()
         progress_tracker = UploadTracker(len(files), total_size, bandwidth_monitor)
@@ -64,8 +66,8 @@ class CloudflareR2:
         monitor_thread.start()
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.cloudflare.max_concurrency) as executor:
-            future_to_file = {executor.submit(self.upload_file, file, file, bucket_name, progress_tracker): file
-                for file in files}
+            future_to_file = {executor.submit(self.upload_file, data_file, chunk_file, bucket_name, progress_tracker):
+                (data_file, chunk_file, bucket_name) for data_file, chunk_file, bucket_name in files if os.path.exists(data_file)}
             for future in concurrent.futures.as_completed(future_to_file):
                 file = future_to_file[future]
                 try:

@@ -38,8 +38,8 @@ def prepare_boot(name: str, num_buckets: int, config_updates: dict = None):
 
         # Upload boot.tar
         log.bind(custom_label="info").info(f"Uploading boot.tar to {bucket_name}")
-        files_to_upload = [(boot_file_path, "boot.tar")]
-        cloudflare_r2.upload_files_concurrently(files_to_upload, bucket_name)
+        files_to_upload = [(boot_file_path, "boot.tar", bucket_name)]
+        cloudflare_r2.upload_files_concurrently(files_to_upload)
         log.bind(custom_label="success").info(f"Uploaded boot.tar to {bucket_name}")
 
     log.bind(custom_label="success").info(f"Completed preparation for {num_buckets} buckets")
