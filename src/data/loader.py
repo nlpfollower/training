@@ -2,7 +2,7 @@ import json
 import torch
 import random
 from torch.utils.data import Dataset, DataLoader
-from typing import Dict, List, Any, Iterator, Union
+from typing import Dict, List, Any, Iterator, Union, Tuple
 from config import Config
 import os
 from llama_models.llama3_1.api.tokenizer import Tokenizer as LlamaTokenizer
@@ -24,6 +24,7 @@ class BaseLoader:
         self.config = config
         self.tokenizer = tokenizer
 
+
     def get_pad_token_id(self):
         if hasattr(self.tokenizer, 'pad_id'):
             return self.tokenizer.pad_id
@@ -42,10 +43,7 @@ class BaseLoader:
                 'attention_mask': encoded['attention_mask']
             }
 
-    def get_train_iterator(self) -> Iterator[Dict[str, torch.Tensor]]:
-        raise NotImplementedError
-
-    def get_eval_iterator(self) -> Iterator[Dict[str, torch.Tensor]]:
+    def split_data(self) -> Tuple[DataLoader, DataLoader]:
         raise NotImplementedError
 
 class DPODataset(Dataset):
@@ -71,15 +69,31 @@ class DPOLoader(BaseLoader):
         print(f"Current working directory: {os.getcwd()}")
         print(f"File exists: {os.path.exists(self.file_path)}")
         self.data = self._load_data()
-        self.train_data, self.eval_data = self._split_data()
 
     def _load_data(self):
         with open(self.file_path, 'r') as f:
             return json.load(f)
 
-    def _split_data(self):
+    def split_data(self):
         eval_size = int(len(self.data) * self.config.training.eval_split)
-        return self.data[:-eval_size], self.data[-eval_size:]
+        train_data, eval_data = DPODataset(self.data[:-eval_size]), DPODataset(self.data[-eval_size:])
+        train_dataloader = DataLoader(
+            train_data,
+            batch_size=self.config.training.batch_size,
+            shuffle=True,
+            collate_fn=self._collate_fn,
+            num_workers=self.config.training.num_workers,
+            pin_memory=True
+        )
+        eval_dataloader = DataLoader(
+            eval_data,
+            batch_size=self.config.training.eval_batch_size,
+            shuffle=False,
+            collate_fn=self._collate_fn,
+            num_workers=self.config.training.num_workers,
+            pin_memory=True
+        )
+        return train_dataloader, eval_dataloader
 
     def _collate_fn(self, batch: List[DPOSample]) -> DPOBatch:
         prompt_chats = [
@@ -155,30 +169,6 @@ class DPOLoader(BaseLoader):
             labels=concatenated_labels,
             chosen_length=len(chosen_input_ids)
         )
-
-    def get_train_iterator(self) -> Iterator[DPOBatch]:
-        dataset = DPODataset(self.train_data)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.config.training.batch_size,
-            shuffle=True,
-            collate_fn=self._collate_fn,
-            num_workers=self.config.training.num_workers,
-            pin_memory=True
-        )
-        return iter(dataloader)
-
-    def get_eval_iterator(self) -> Iterator[DPOBatch]:
-        dataset = DPODataset(self.eval_data)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.config.training.eval_batch_size,
-            shuffle=False,
-            collate_fn=self._collate_fn,
-            num_workers=self.config.training.num_workers,
-            pin_memory=True
-        )
-        return iter(dataloader)
 
 class KTOLoader(BaseLoader):
     # Implement KTO-specific loading logic here

@@ -7,7 +7,12 @@ class Trainer(ABC):
         pass
 
     @abstractmethod
-    def compute_loss(self, policy_model, reference_model, batch):
+    def forward(self, model, batch):
+        """Forward pass for the model."""
+        pass
+
+    @abstractmethod
+    def compute_loss(self, policy_logits, reference_logits, batch):
         """Compute the loss for a single batch."""
         pass
 

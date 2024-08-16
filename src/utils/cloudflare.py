@@ -52,7 +52,7 @@ class CloudflareR2:
             )
             progress_tracker.complete_file()
         except ClientError as e:
-            log.bind(custom_label="error").error(f"Error uploading {file_name}: {e}")
+            log.error(f"Error uploading {file_name}: {e}")
             return False
         return True
 
@@ -65,7 +65,7 @@ class CloudflareR2:
         monitor_thread.daemon = True
         monitor_thread.start()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.cloudflare.max_concurrency) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(files)) as executor:
             future_to_file = {executor.submit(self.upload_file, data_file, chunk_file, bucket_name, progress_tracker):
                 (data_file, chunk_file, bucket_name) for data_file, chunk_file, bucket_name in files if os.path.exists(data_file)}
             for future in concurrent.futures.as_completed(future_to_file):
@@ -73,9 +73,9 @@ class CloudflareR2:
                 try:
                     success = future.result()
                     if not success:
-                        log.bind(custom_label="warning").warning(f"Failed to upload {file}")
+                        log.warning(f"Failed to upload {file}")
                 except Exception as e:
-                    log.bind(custom_label="error").error(f"Exception occurred while uploading {file}: {e}")
+                    log.error(f"Exception occurred while uploading {file}: {e}")
 
     def download_file(self, bucket_name, object_name, file_name, progress_tracker):
         transfer_config = TransferConfig(
@@ -93,7 +93,7 @@ class CloudflareR2:
             )
             progress_tracker.complete_file()
         except ClientError as e:
-            log.bind(custom_label="error").error(f"Error downloading {object_name}: {e}")
+            log.error(f"Error downloading {object_name}: {e}")
             return False
         return True
 
@@ -115,6 +115,6 @@ class CloudflareR2:
                 try:
                     success = future.result()
                     if not success:
-                        log.bind(custom_label="warning").warning(f"Failed to download {file}")
+                        log.warning(f"Failed to download {file}")
                 except Exception as e:
-                    log.bind(custom_label="error").error(f"Exception occurred while downloading {file}: {e}")
+                    log.error(f"Exception occurred while downloading {file}: {e}")

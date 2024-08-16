@@ -79,7 +79,8 @@ class TrainingConfig:
     nodes: int = 1
     master_addr: str = 'localhost'
     master_port: str = '12355'
-    node_rank: int = 0
+    node_rank: int = 0,
+    rpc_server_port: int = 29500
 
 @dataclass
 class FSDPConfig:

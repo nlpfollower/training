@@ -42,19 +42,15 @@ class DPOTrainer(Trainer):
             chosen_length=batch.chosen_length
         )
 
-    def compute_loss(self, policy_model, reference_model, batch: DPOBatch) -> torch.FloatTensor:
-        outputs = policy_model(batch.input_ids, attention_mask=batch.attention_mask)
-        policy_logits = outputs.logits if hasattr(outputs, 'logits') else outputs['logits']
+    def forward(self, model, batch: DPOBatch):
+        outputs = model(batch.input_ids, attention_mask=batch.attention_mask)
+        return outputs.logits if hasattr(outputs, 'logits') else outputs['logits']
 
-        with torch.no_grad():
-            ref_outputs = reference_model(batch.input_ids, attention_mask=batch.attention_mask)
-            reference_logits = ref_outputs.logits if hasattr(ref_outputs, 'logits') else ref_outputs['logits']
-
-        chosen_length = batch.chosen_length
-        policy_chosen_logps = self._get_logps(policy_logits[:chosen_length], batch.labels[:chosen_length])
-        policy_rejected_logps = self._get_logps(policy_logits[chosen_length:], batch.labels[chosen_length:])
-        reference_chosen_logps = self._get_logps(reference_logits[:chosen_length], batch.labels[:chosen_length])
-        reference_rejected_logps = self._get_logps(reference_logits[chosen_length:], batch.labels[chosen_length:])
+    def compute_loss(self, policy_logits, reference_logits, batch: DPOBatch):
+        policy_chosen_logps = self._get_logps(policy_logits[:batch.chosen_length], batch.labels[:batch.chosen_length])
+        policy_rejected_logps = self._get_logps(policy_logits[batch.chosen_length:], batch.labels[batch.chosen_length:])
+        reference_chosen_logps = self._get_logps(reference_logits[:batch.chosen_length], batch.labels[:batch.chosen_length])
+        reference_rejected_logps = self._get_logps(reference_logits[batch.chosen_length:], batch.labels[batch.chosen_length:])
 
         losses, chosen_rewards, rejected_rewards = dpo_loss(
             policy_chosen_logps, policy_rejected_logps,
