@@ -95,9 +95,9 @@ class FSDPConfig:
 
 @dataclass
 class CloudflareConfig:
-    multipart_threshold: int = 100 * 1024 * 1024  # 100 MB
-    multipart_chunksize: int = 100 * 1024 * 1024  # 25 MB
-    max_concurrency: int = 20
+    multipart_threshold: int = 200 * 1024 * 1024  # 100 MB
+    multipart_chunksize: int = 200 * 1024 * 1024  # 25 MB
+    max_concurrency: int = 5
 
 @dataclass
 class Config:
