@@ -4,7 +4,7 @@ from src.utils.logger import log_bandwidth
 
 
 class BandwidthMonitor:
-    def __init__(self, interval=1):
+    def __init__(self, interval=10):  # Changed to 10 seconds
         self.interval = interval
         self.lock = threading.Lock()
         self.total_bytes = 0

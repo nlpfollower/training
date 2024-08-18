@@ -60,6 +60,7 @@ def prepare_boot(bucket_name: str, config_updates: dict = None):
 def main(bucket_name: str, **kwargs):
     log.info(f"Starting boot preparation for bucket '{bucket_name}'")
     prepare_boot(bucket_name, config_updates=kwargs)
+    log.info(f"Completed boot preparation for bucket '{bucket_name}'")
 
 if __name__ == "__main__":
     fire.Fire(main)
