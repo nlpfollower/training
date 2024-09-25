@@ -19,11 +19,39 @@ def pad_to_length(tensor: torch.Tensor, length: int, pad_value: Union[int, float
         pad_size[dim] = length - tensor.size(dim)
         return torch.cat([tensor, pad_value * torch.ones(*pad_size, dtype=tensor.dtype, device=tensor.device)], dim=dim)
 
+class RawDataset:
+    def __init__(self, data: Union[str, List[str], List[Dict[str, Any]], Dict[str, Any]], method: str):
+        self.method = method
+        self.data = self._load_data(data)
+
+    def _load_data(self, data):
+        if isinstance(data, str):  # Assume it's a file path
+            with open(data, 'r') as f:
+                return json.load(f)
+        return data
+
+    def __len__(self):
+        if isinstance(self.data, list):
+            return len(self.data)
+        return 1  # For single item data
+
+    def __getitem__(self, idx):
+        if isinstance(self.data, list):
+            return self.data[idx]
+        return self.data  # For single item data
+
+    @property
+    def raw_data(self):
+        return self.data
+
 class BaseLoader:
     def __init__(self, config: Config, tokenizer):
         self.config = config
         self.tokenizer = tokenizer
+        self.dataset = None
 
+    def load_data(self, raw_dataset: RawDataset):
+        raise NotImplementedError
 
     def get_pad_token_id(self):
         if hasattr(self.tokenizer, 'pad_id'):
@@ -43,7 +71,7 @@ class BaseLoader:
                 'attention_mask': encoded['attention_mask']
             }
 
-    def split_data(self) -> Tuple[DataLoader, DataLoader]:
+    def get_dataloader(self) -> Union[DataLoader, Tuple[DataLoader, DataLoader]]:
         raise NotImplementedError
 
 class DPODataset(Dataset):
@@ -61,22 +89,21 @@ class DPODataset(Dataset):
             chat2=item['chat2']
         )
 
+
 class DPOLoader(BaseLoader):
     def __init__(self, config: Config, tokenizer: LlamaTokenizer):
         super().__init__(config, tokenizer)
-        self.file_path = os.path.join(config.paths.dpo_output_dir, 'dpo_samples.json')
-        print(f"DPO samples file path: {self.file_path}")
-        print(f"Current working directory: {os.getcwd()}")
-        print(f"File exists: {os.path.exists(self.file_path)}")
-        self.data = self._load_data()
 
-    def _load_data(self):
-        with open(self.file_path, 'r') as f:
-            return json.load(f)
+    def load_data(self, raw_dataset: RawDataset):
+        self.dataset = DPODataset(raw_dataset.raw_data)
 
-    def split_data(self):
-        eval_size = int(len(self.data) * self.config.training.eval_split)
-        train_data, eval_data = DPODataset(self.data[:-eval_size]), DPODataset(self.data[-eval_size:])
+    def get_dataloader(self) -> Tuple[DataLoader, DataLoader]:
+        if self.dataset is None:
+            raise ValueError("Data not loaded. Call load_data() first.")
+
+        eval_size = int(len(self.dataset) * self.config.training.eval_split)
+        train_data, eval_data = torch.utils.data.random_split(self.dataset, [len(self.dataset) - eval_size, eval_size])
+
         train_dataloader = DataLoader(
             train_data,
             batch_size=self.config.training.batch_size,
@@ -171,20 +198,54 @@ class DPOLoader(BaseLoader):
         )
 
 class KTOLoader(BaseLoader):
-    # Implement KTO-specific loading logic here
-    pass
+    def load_data(self, raw_dataset: RawDataset):
+        # Implement KTO-specific loading logic here
+        pass
 
 class SPFTLoader(BaseLoader):
-    # Implement SPFT-specific loading logic here
-    pass
+    def load_data(self, raw_dataset: RawDataset):
+        # Implement SPFT-specific loading logic here
+        pass
 
-def get_loader(config: Config, tokenizer) -> BaseLoader:
-    method = config.training.method
-    if method == "dpo":
-        return DPOLoader(config, tokenizer)
+class InferenceDataset(Dataset):
+    def __init__(self, data: List[Dict[str, Any]]):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+class InferenceLoader(BaseLoader):
+    def load_data(self, raw_dataset: RawDataset):
+        self.dataset = InferenceDataset(raw_dataset.raw_data)
+
+    def get_dataloader(self) -> DataLoader:
+        if self.dataset is None:
+            raise ValueError("Data not loaded. Call load_data() first.")
+
+        return DataLoader(
+            self.dataset,
+            batch_size=1,  # For now, we'll stick to single inference
+            shuffle=False,
+            num_workers=0,
+            pin_memory=True
+        )
+
+def get_loader(config: Config, tokenizer, raw_dataset: RawDataset) -> BaseLoader:
+    method = raw_dataset.method
+
+    if method == "inference":
+        loader = InferenceLoader(config, tokenizer)
+    elif method == "dpo":
+        loader = DPOLoader(config, tokenizer)
     elif method == "kto":
-        return KTOLoader(config, tokenizer)
+        loader = KTOLoader(config, tokenizer)
     elif method == "spft":
-        return SPFTLoader(config, tokenizer)
+        loader = SPFTLoader(config, tokenizer)
     else:
-        raise ValueError(f"Unsupported training method: {method}")
+        raise ValueError(f"Unsupported method: {method}")
+
+    loader.load_data(raw_dataset)
+    return loader

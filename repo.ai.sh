@@ -1,0 +1,1 @@
+repopack --ignore "**.model,repo.ai.txt" -o repo.ai.txt

@@ -73,7 +73,7 @@ class TrainingConfig:
     eval_split: float = 0.1
     save_interval: int = 1  # Save checkpoint every n epochs
     eval_interval: int = 1  # Run evaluation every n epochs
-    num_workers: int = 4
+    num_workers: int = 1
     distributed: bool = False
     world_size: int = 1
     nodes: int = 1
@@ -109,7 +109,7 @@ class Config:
     sentiment: SentimentConfig = field(default_factory=SentimentConfig)
     model: ModelConfig = field(default_factory=lambda: ModelConfig(
         name="llama3",
-        model_path="models/Meta-HF-Llama-3.1-8B-Instruct",
+        model_path="models/Meta-Llama-3.1-8B-Instruct",
         tokenizer_path="src/model/llama_tokenizer.model"
     ))
     training: TrainingConfig = field(default_factory=TrainingConfig)
@@ -117,7 +117,7 @@ class Config:
 MODEL_PRESETS = {
     "llama3": ModelConfig(
         name="llama3",
-        model_path="models/Meta-HF-Llama-3.1-8B-Instruct",
+        model_path="models/Meta-Llama-3.1-8B-Instruct",
         tokenizer_path="src/model/llama_tokenizer.model",
         max_sequence_length=2048
     ),
@@ -132,10 +132,17 @@ MODEL_PRESETS = {
 def get_config() -> Config:
     config = Config()
     # Ensure directories exist
-    for directory in [config.paths.dpo_output_dir, config.paths.kto_output_dir,
-                      config.paths.spft_output_dir, config.paths.stats_dir,
-                      config.paths.checkpoint_dir, config.paths.shared_model_dir,
-                      config.paths.node_specific_dir]:
+    directories = [
+        config.paths.output_dir,
+        config.paths.dpo_output_dir,
+        config.paths.kto_output_dir,
+        config.paths.spft_output_dir,
+        config.paths.stats_dir,
+        config.paths.checkpoint_dir,
+        config.paths.shared_model_dir,
+        config.paths.node_specific_dir
+    ]
+    for directory in directories:
         os.makedirs(directory, exist_ok=True)
     return config
 

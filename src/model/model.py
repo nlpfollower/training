@@ -13,11 +13,13 @@ from src.types.conversation import Chat
 
 
 class Model:
-    def __init__(self, config: Config, accelerator: Accelerator):
+    def __init__(self, config: Config):
         self.config = config
-        self.accelerator = accelerator
         self.model = None
         self.tokenizer = None
+
+    def prepare(self, accelerator: Accelerator):
+        self.model = accelerator.prepare(self.model)
 
     def get_auto_wrap_policy(self):
         return functools.partial(
@@ -25,13 +27,16 @@ class Model:
             transformer_layer_cls={self.get_transformer_layer_class()},
         )
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+    def forward(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
         return self.forward(*args, **kwargs)
 
     def generate(self, input_ids: torch.Tensor, max_length: int, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
+
+    def decode(self, token_ids: List[int]) -> str:
         raise NotImplementedError
 
     def get_tokenizer(self):
@@ -54,10 +59,13 @@ class Model:
     def get_transformer_layer_class(self):
         raise NotImplementedError
 
+    def stop_tokens(self) -> List[int]:
+        raise NotImplementedError
+
     @staticmethod
     def format_conversation(chats: List[Chat]) -> str:
         raise NotImplementedError
 
     @staticmethod
-    def tokenize(tokenizer, text, bos: bool = False, eos: bool = True) -> Dict[str, torch.Tensor]:
+    def tokenize(self, chats: List[Chat], system_prompt: str = "") -> Dict[str, torch.Tensor]:
         raise NotImplementedError

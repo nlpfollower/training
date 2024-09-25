@@ -7,6 +7,7 @@
 /src/data/logs/
 /logs/
 /runpod_launcher/logs/
+/profiler_snapshots/
 wandb/
 
 .DS_Store
@@ -14,6 +15,7 @@ __pycache__
 .ipynb_checkpoints
 .idea
 
+repo.ai.txt
 
 /bazel-*
 MODULE.bazel.lock
