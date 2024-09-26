@@ -82,7 +82,9 @@ class ModelNode:
     def setup_model(self):
         if self.debug:
             log.info(f"Setting up model: {self.config.model.name}")
-        Profiler.print_memory_stats()
+            # Take snapshot before model loading
+            Profiler.take_snapshot('before_model_load')
+            Profiler.print_memory_stats()
 
         if self.config.model.name == "llama3":
             model = LlamaModel(self.config)
@@ -94,7 +96,9 @@ class ModelNode:
         model.get_tokenizer().model_max_length = self.config.model.max_sequence_length
 
         log.info("Model setup completed.")
-        Profiler.print_memory_stats()
+        if self.debug:
+            Profiler.take_snapshot('after_model_load')
+            Profiler.print_memory_stats()
         return model
 
     def setup_dataloader(self):

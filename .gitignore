@@ -8,7 +8,8 @@
 /logs/
 /runpod_launcher/logs/
 /profiler_snapshots/
-wandb/
+/wandb/
+/output/
 
 .DS_Store
 __pycache__

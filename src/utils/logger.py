@@ -1,4 +1,5 @@
 # src/utils/logger.py
+import os
 from dataclasses import dataclass
 
 from loguru import logger
@@ -65,26 +66,34 @@ def format_record(record):
 
     return log_message
 
+def setup_logger(log_dir):
+    global log
 
-# Remove the default handler
-logger.remove()
+    # Remove the default handler
+    logger.remove()
 
-# Add a new handler with the custom format
-logger.add(
-    sys.stderr,
-    format=format_record,
-    level="INFO",
-    colorize=True
-)
+    # Create log directory if it doesn't exist
+    os.makedirs(log_dir, exist_ok=True)
 
-# If you're also logging to a file, add another handler
-logger.add(
-    "logs/file_{time}.log",
-    format=format_record,
-    level="INFO",
-    rotation="500 MB",
-    colorize=False
-)
+    # Add a new handler for console output
+    logger.add(
+        sys.stderr,
+        format=format_record,
+        level="INFO",
+        colorize=True
+    )
+
+    # Add a new handler for file output
+    logger.add(
+        os.path.join(log_dir, "file_{time}.log"),
+        format=format_record,
+        level="INFO",
+        rotation="500 MB",
+        colorize=False
+    )
+
+    log = logger
+
 
 def log_training_progress(epoch, batch, total_batches, loss, lr):
     progress = f"Epoch: {epoch:3d} | Batch: {batch:5d}/{total_batches:5d} | Loss: {loss:.4f} | LR: {lr:.6f}"
@@ -103,5 +112,5 @@ def log_bandwidth(current_speed, avg_speed):
     )
 
 
-# Export the logger and the training progress function
+# Initialize log as None, it will be properly set up in setup_logger
 log = logger

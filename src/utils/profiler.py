@@ -8,12 +8,14 @@ import argparse
 class Profiler:
     enabled = False
     snapshot_dir = 'profiler_snapshots'
+    run_id = None
 
     @classmethod
-    def initialize(cls, snapshot_dir='profiler_snapshots'):
+    def initialize(cls, output_dir='profiler_snapshots'):
         cls.enabled = True
-        cls.snapshot_dir = snapshot_dir
-        os.makedirs(snapshot_dir, exist_ok=True)
+        cls.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cls.snapshot_dir = os.path.join(output_dir, f"run_{cls.run_id}")
+        os.makedirs(cls.snapshot_dir, exist_ok=True)
         torch.cuda.memory._record_memory_history(enabled='all', context='all', stacks='all')
 
     @classmethod
@@ -45,16 +47,19 @@ class Profiler:
             return wrapper
         return decorator
 
+
     @classmethod
     def take_snapshot(cls, label=''):
         if not cls.enabled:
             return
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{label}_snapshot_{timestamp}.pickle"
-        filepath = os.path.join(cls.snapshot_dir, filename)
-        torch.cuda.memory._dump_snapshot(filepath)
-        print(f"CUDA memory snapshot saved: {filepath}")
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{label}_snapshot_{timestamp}.pickle"
+            filepath = os.path.join(cls.snapshot_dir, filename)
+            torch.cuda.memory._dump_snapshot(filepath)
+            print(f"CUDA memory snapshot saved: {filepath}")
+        except Exception as e:
+            print(f"Failed to take snapshot: {e}")
 
     @classmethod
     def print_memory_stats(cls):
