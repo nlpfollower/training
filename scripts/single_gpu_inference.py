@@ -1,4 +1,5 @@
 # scripts/single_gpu_inference.py
+import os
 
 import fire
 import pydevd_pycharm
@@ -8,7 +9,7 @@ from src.coordination.model_node import ModelNode
 from src.types.conversation import Chat, Role
 from src.utils.logger import log
 from src.data.loader import RawDataset
-from src.utils.profiler import Profiler, add_profiler_args
+from src.utils.profiler import Profiler
 import argparse
 
 
@@ -22,11 +23,11 @@ def main(model='llama3',
          debug=False,
          **kwargs):
     parser = argparse.ArgumentParser()
-    add_profiler_args(parser)
     args, unknown = parser.parse_known_args()
 
-    if args.profile:
-        Profiler.initialize(snapshot_dir=args.profile_dir)
+    if debug:
+        profile_dir = os.path.join(args.output_dir, "profiler_snapshots")
+        Profiler.initialize(output_dir=profile_dir)
 
     # Setup configuration
     config = get_config()

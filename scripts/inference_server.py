@@ -12,7 +12,7 @@ from src.data.loader import RawDataset
 from src.types.conversation import Chat, Role
 from config import get_config, set_model_preset, update_config
 from src.utils.logger import log, setup_logger
-from src.utils.profiler import Profiler, add_profiler_args
+from src.utils.profiler import Profiler
 
 model_node = None
 config = None

@@ -13,7 +13,7 @@ class Profiler:
     @classmethod
     def initialize(cls, output_dir='profiler_snapshots'):
         cls.enabled = True
-        cls.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cls.run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         cls.snapshot_dir = os.path.join(output_dir, f"run_{cls.run_id}")
         os.makedirs(cls.snapshot_dir, exist_ok=True)
         torch.cuda.memory._record_memory_history(enabled='all', context='all', stacks='all')
@@ -53,7 +53,7 @@ class Profiler:
         if not cls.enabled:
             return
         try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"{label}_snapshot_{timestamp}.pickle"
             filepath = os.path.join(cls.snapshot_dir, filename)
             torch.cuda.memory._dump_snapshot(filepath)
@@ -81,7 +81,3 @@ class Profiler:
         if not cls.enabled:
             return {}
         return {i: torch.cuda.max_memory_allocated(i) / 1e6 for i in range(torch.cuda.device_count())}
-
-def add_profiler_args(parser):
-    parser.add_argument('--profile', action='store_true', help='Enable profiling')
-    parser.add_argument('--profile-dir', type=str, default='profiler_snapshots', help='Directory to store profiler snapshots')
