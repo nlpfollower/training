@@ -10,22 +10,37 @@ from src.model.model import Model
 from src.types.conversation import Chat, Thread, Role
 from config import Config
 from src.utils.logger import log
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_fixed(1),
+    retry=retry_if_exception_type(RequestException),
+    reraise=True
+)
+def try_load_checkpoint(checkpoint_index):
+    response = requests.post('http://localhost:8001/checkpoint',
+                             json={'checkpoint': checkpoint_index},
+                             timeout=5)
+    if response.status_code != 200:
+        raise RequestException(f"Failed to load checkpoint {checkpoint_index}: {response.text}")
+    return response
 
 def ensure_checkpoint_loaded(checkpoint_file):
     checkpoint_number = re.search(r'model-(\d+)-of-', checkpoint_file)
     if checkpoint_number:
-        checkpoint_index = int(checkpoint_number.group(1))
+        checkpoint_index = int(checkpoint_number.group(1)) - 1  # Adjust index if needed
         try:
-            response = requests.post('http://localhost:8001/checkpoint',
-                                     json={'checkpoint': checkpoint_index},
-                                     timeout=5)
-            if response.status_code == 200:
-                print(f"Checkpoint {checkpoint_index} loaded successfully")
-            else:
-                print(f"Failed to load checkpoint {checkpoint_index}: {response.text}")
+            response = try_load_checkpoint(checkpoint_index)
+            print(f"Checkpoint {checkpoint_index} loaded successfully")
         except RequestException as e:
-            print(f"Error connecting to checkpoint server: {e}")
+            print(f"Error connecting to checkpoint server after multiple attempts: {e}")
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+        finally:
+            print("Continuing with local file loading...")
+    else:
+        print(f"Could not extract checkpoint number from file: {checkpoint_file}")
         print("Continuing with local file loading...")
 
 # Store the original load_state_dict function

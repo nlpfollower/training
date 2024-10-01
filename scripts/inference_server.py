@@ -14,6 +14,7 @@ from config import get_config, set_model_preset, update_config
 from src.utils.logger import log, setup_logger
 from src.utils.profiler import Profiler
 
+server_status = "Initializing"
 model_node = None
 config = None
 
@@ -29,7 +30,7 @@ def parse_args():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model_node, config
+    global model_node, config, server_status
     args = parse_args()
 
     # Create output directory
@@ -58,6 +59,7 @@ async def lifespan(app: FastAPI):
 
     model_node = ModelNode(config, raw_dataset, is_reference=True, system_prompt=args.system_prompt, debug=args.debug)
     log.info("Model initialized and ready for inference")
+    server_status = "Available"
 
     yield
 
@@ -68,6 +70,16 @@ async def lifespan(app: FastAPI):
         Profiler.print_memory_stats()
 
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/status")
+async def get_status():
+    return {"Status": server_status}
+
+@app.post("/shutdown")
+async def shutdown():
+    log.info("Received shutdown request. Cleaning up...")
+    # Perform any necessary cleanup here
+    os._exit(0)
 
 class ChatMessage(BaseModel):
     role: str
