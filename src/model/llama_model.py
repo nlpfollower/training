@@ -1,7 +1,9 @@
-import os
+import re
+import requests
 import torch
-from transformers import LlamaForCausalLM, BitsAndBytesConfig, LlamaConfig
-from llama_models.llama3_1.api.tokenizer import Tokenizer as LlamaTokenizer
+from requests import RequestException
+from transformers import LlamaForCausalLM, BitsAndBytesConfig, LlamaConfig, modeling_utils
+from llama_models.llama3.api.tokenizer import Tokenizer as LlamaTokenizer
 from typing import Dict, Optional, List, Union, Tuple
 
 from src.model.model import Model
@@ -10,9 +12,39 @@ from config import Config
 from src.utils.logger import log
 
 
+def ensure_checkpoint_loaded(checkpoint_file):
+    checkpoint_number = re.search(r'model-(\d+)-of-', checkpoint_file)
+    if checkpoint_number:
+        checkpoint_index = int(checkpoint_number.group(1))
+        try:
+            response = requests.post('http://localhost:8001/checkpoint',
+                                     json={'checkpoint': checkpoint_index},
+                                     timeout=5)
+            if response.status_code == 200:
+                print(f"Checkpoint {checkpoint_index} loaded successfully")
+            else:
+                print(f"Failed to load checkpoint {checkpoint_index}: {response.text}")
+        except RequestException as e:
+            print(f"Error connecting to checkpoint server: {e}")
+        print("Continuing with local file loading...")
+
+# Store the original load_state_dict function
+original_load_state_dict = modeling_utils.load_state_dict
+
+
+def custom_load_state_dict(checkpoint_file, *args, **kwargs):
+    if checkpoint_file.endswith('.safetensors'):
+        ensure_checkpoint_loaded(checkpoint_file)
+
+    return original_load_state_dict(checkpoint_file, *args, **kwargs)
+
+# Replace the load_state_dict function with our custom one
+modeling_utils.load_state_dict = custom_load_state_dict
+
 class LlamaModel(Model):
     def __init__(self, config: Config):
         super().__init__(config)
+
         # quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         llama_config = LlamaConfig.from_pretrained(config.model.model_path)
         llama_config._attn_implementation = "flash_attention_2"

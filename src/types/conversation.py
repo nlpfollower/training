@@ -1,10 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Dict
 from enum import Enum
-from strong_typing.schema import json_schema_type
 
-@json_schema_type
-class Role(Enum):
+class Role(str, Enum):
     system = "system"
     user = "user"
     assistant = "assistant"
@@ -12,7 +10,7 @@ class Role(Enum):
 
 @dataclass
 class Chat:
-    role: str
+    role: Role
     message: str
 
     def is_turn(self) -> bool:

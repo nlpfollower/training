@@ -5,7 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from typing import Dict, List, Any, Iterator, Union, Tuple
 from config import Config
 import os
-from llama_models.llama3_1.api.tokenizer import Tokenizer as LlamaTokenizer
+from llama_models.llama3.api.tokenizer import Tokenizer as LlamaTokenizer
 from src.model.llama_model import LlamaModel
 from src.types.conversation import Chat
 from src.types.datasets import DPOSample, DPOBatch
